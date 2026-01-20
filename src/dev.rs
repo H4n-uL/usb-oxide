@@ -8,8 +8,8 @@ use crate::{
     xhci::XhciCtrl,
 };
 
-use core::hint::spin_loop;
 use alloc::{sync::Arc, vec::Vec};
+use core::hint::spin_loop;
 use spin::Mutex;
 
 /// xHCI Slot Context (32 bytes).
@@ -27,7 +27,7 @@ pub struct SlotContext {
     pub dw2: u32,
     /// Device Address, Slot State
     pub dw3: u32,
-    _reserved: [u32; 4],
+    _0: [u32; 4],
 }
 
 impl SlotContext {
@@ -38,7 +38,7 @@ impl SlotContext {
             dw1: ((root_port as u32) << 16),
             dw2: 0,
             dw3: 0,
-            _reserved: [0; 4],
+            _0: [0; 4],
         }
     }
 }
@@ -59,7 +59,7 @@ pub struct EndpointContext {
     pub tr_dequeue_hi: u32,
     /// Average TRB Length, Max ESIT Payload Lo
     pub dw4: u32,
-    _reserved: [u32; 3],
+    _0: [u32; 3],
 }
 
 impl EndpointContext {
@@ -80,7 +80,7 @@ impl EndpointContext {
             tr_dequeue_lo: (tr_ptr as u32) | 1, // DCS = 1
             tr_dequeue_hi: (tr_ptr >> 32) as u32,
             dw4: 8, // Average TRB Length
-            _reserved: [0; 3],
+            _0: [0; 3],
         }
     }
 }
@@ -100,7 +100,6 @@ pub struct InputContext {
     pub endpoints: [EndpointContext; 31],
 }
 
-
 /// xHCI Device Context.
 ///
 /// Output context maintained by the xHCI controller containing
@@ -113,7 +112,6 @@ pub struct DeviceContext {
     /// Endpoint Contexts
     pub endpoints: [EndpointContext; 31],
 }
-
 
 /// USB Device abstraction.
 ///
@@ -128,7 +126,7 @@ pub struct UsbDevice<H: Dma> {
     device_ctx: PhysMem<H>,
     input_ctx: PhysMem<H>,
     ep0_ring: Mutex<Ring<H>>,
-    ep_rings: Mutex<[Option<Ring<H>>; 31]>,
+    ep_rings: Mutex<Vec<Option<Ring<H>>>>,
     device_desc: Option<DeviceDesc>,
 }
 
@@ -196,7 +194,9 @@ impl<H: Dma> UsbDevice<H> {
         };
         ctrl.submit_command(trb)?;
 
-        let ep_rings: [Option<Ring<H>>; 31] = Default::default();
+        // Allocate ep_rings on heap to reduce stack usage
+        let mut ep_rings = Vec::with_capacity(31);
+        ep_rings.resize_with(31, || None);
 
         Ok(Self {
             ctrl,
@@ -285,44 +285,44 @@ impl<H: Dma> UsbDevice<H> {
         loop {
             if let Some(evt) = self.ctrl.poll_event()
                 && evt.trb_type() == trb_type::TRANSFER_EVENT as u8
-                    && evt.slot_id() == self.slot_id {
-                        let code = evt.completion_code();
-                        match code {
-                            completion::SUCCESS | completion::SHORT_PACKET => {
-                                let transferred =
-                                    setup.length as usize - evt.transfer_length() as usize;
+                && evt.slot_id() == self.slot_id
+            {
+                let code = evt.completion_code();
+                match code {
+                    completion::SUCCESS | completion::SHORT_PACKET => {
+                        let transferred =
+                            (setup.length as usize).saturating_sub(evt.transfer_length() as usize);
 
-                                // Copy data back for IN transfers
-                                if data_dir
-                                    && let (Some(buf), Some(d)) = (&data_buf, &mut data) {
-                                        unsafe {
-                                            core::ptr::copy_nonoverlapping(
-                                                buf.as_ptr::<u8>(),
-                                                d.as_mut_ptr(),
-                                                transferred.min(d.len()),
-                                            );
-                                        }
-                                    }
-
-                                if let Some(buf) = data_buf {
-                                    buf.free(host);
-                                }
-                                return Ok(transferred);
-                            }
-                            completion::STALL_ERROR => {
-                                if let Some(buf) = data_buf {
-                                    buf.free(host);
-                                }
-                                return Err(UsbError::Stall);
-                            }
-                            _ => {
-                                if let Some(buf) = data_buf {
-                                    buf.free(host);
-                                }
-                                return Err(UsbError::XferFail(code));
+                        // Copy data back for IN transfers
+                        if data_dir && let (Some(buf), Some(d)) = (&data_buf, &mut data) {
+                            unsafe {
+                                core::ptr::copy_nonoverlapping(
+                                    buf.as_ptr::<u8>(),
+                                    d.as_mut_ptr(),
+                                    transferred.min(d.len()),
+                                );
                             }
                         }
+
+                        if let Some(buf) = data_buf {
+                            buf.free(host);
+                        }
+                        return Ok(transferred);
                     }
+                    completion::STALL_ERROR => {
+                        if let Some(buf) = data_buf {
+                            buf.free(host);
+                        }
+                        return Err(UsbError::Stall);
+                    }
+                    _ => {
+                        if let Some(buf) = data_buf {
+                            buf.free(host);
+                        }
+                        return Err(UsbError::XferFail(code));
+                    }
+                }
+            }
             spin_loop();
         }
     }

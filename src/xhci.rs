@@ -3,8 +3,8 @@ use crate::{
     ring::{EventRing, PhysMem, Ring, Trb, completion, trb_type},
 };
 
+use alloc::{boxed::Box, sync::Arc};
 use core::hint::spin_loop;
-use alloc::sync::Arc;
 use spin::Mutex;
 
 const MMIO_INIT_SIZE: usize = 0x1000;
@@ -23,8 +23,8 @@ pub struct XhciCtrl<H: Dma> {
     max_ports: u8,
     dcbaa: PhysMem<H>,
     scratchpad: Option<PhysMem<H>>,
-    cmd_ring: Mutex<Ring<H>>,
-    event_ring: Mutex<EventRing<H>>,
+    cmd_ring: Mutex<Box<Ring<H>>>,
+    event_ring: Mutex<Box<EventRing<H>>>,
     host: Arc<H>,
 }
 
@@ -102,9 +102,9 @@ impl<H: Dma> XhciCtrl<H> {
             None
         };
 
-        // Allocate rings
-        let cmd_ring = Ring::new(&*host, CMD_RING_SIZE)?;
-        let event_ring = EventRing::new(&*host, EVENT_RING_SIZE)?;
+        // Allocate rings on heap to reduce stack usage
+        let cmd_ring = Box::new(Ring::new(&*host, CMD_RING_SIZE)?);
+        let event_ring = Box::new(EventRing::new(&*host, EVENT_RING_SIZE)?);
 
         let mut ctrl = Self {
             mmio,

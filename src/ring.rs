@@ -409,7 +409,7 @@ impl<H: Dma> Ring<H> {
 pub(crate) struct ErstEntry {
     pub base: u64,
     pub size: u16,
-    _reserved: [u8; 6],
+    _0: [u8; 6],
 }
 
 pub(crate) struct EventRing<H: Dma> {

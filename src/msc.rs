@@ -10,8 +10,8 @@ use crate::{
     ring::PhysMem,
 };
 
-use core::hint::spin_loop;
 use alloc::sync::Arc;
+use core::hint::spin_loop;
 
 /// Command Block Wrapper (CBW) - 31 bytes.
 ///
@@ -436,15 +436,16 @@ impl<H: Dma> MscDevice<H> {
     fn wait_transfer(&self) -> Result<usize> {
         loop {
             if let Some(evt) = self.device.ctrl().poll_event()
-                && evt.slot_id() == self.device.slot_id() {
-                    let code = evt.completion_code();
-                    if code == 1 || code == 13 {
-                        // SUCCESS or SHORT_PACKET
-                        return Ok(evt.transfer_length() as usize);
-                    } else {
-                        return Err(UsbError::XferFail(code));
-                    }
+                && evt.slot_id() == self.device.slot_id()
+            {
+                let code = evt.completion_code();
+                if code == 1 || code == 13 {
+                    // SUCCESS or SHORT_PACKET
+                    return Ok(evt.transfer_length() as usize);
+                } else {
+                    return Err(UsbError::XferFail(code));
                 }
+            }
             spin_loop();
         }
     }

@@ -20,8 +20,8 @@ use crate::{
     ring::PhysMem,
 };
 
-use core::hint::spin_loop;
 use alloc::sync::Arc;
+use core::hint::spin_loop;
 
 /// HID Usage Page codes.
 pub mod usage_page {
@@ -646,18 +646,19 @@ impl<H: Dma> HidDevice<H> {
         }
 
         if let Some(evt) = self.device.ctrl().poll_event()
-            && evt.slot_id() == self.device.slot_id() {
-                let code = evt.completion_code();
-                if code == 1 || code == 13 {
-                    // SUCCESS or SHORT_PACKET
-                    let report = unsafe { *(self.report_buf.as_ptr::<KeyboardReport>()) };
+            && evt.slot_id() == self.device.slot_id()
+        {
+            let code = evt.completion_code();
+            if code == 1 || code == 13 {
+                // SUCCESS or SHORT_PACKET
+                let report = unsafe { *(self.report_buf.as_ptr::<KeyboardReport>()) };
 
-                    // Re-queue for next report
-                    let _ = self.queue_read();
+                // Re-queue for next report
+                let _ = self.queue_read();
 
-                    return Some(report);
-                }
+                return Some(report);
             }
+        }
         None
     }
 
@@ -668,17 +669,18 @@ impl<H: Dma> HidDevice<H> {
         }
 
         if let Some(evt) = self.device.ctrl().poll_event()
-            && evt.slot_id() == self.device.slot_id() {
-                let code = evt.completion_code();
-                if code == 1 || code == 13 {
-                    let report = unsafe { *(self.report_buf.as_ptr::<MouseReport>()) };
+            && evt.slot_id() == self.device.slot_id()
+        {
+            let code = evt.completion_code();
+            if code == 1 || code == 13 {
+                let report = unsafe { *(self.report_buf.as_ptr::<MouseReport>()) };
 
-                    // Re-queue for next report
-                    let _ = self.queue_read();
+                // Re-queue for next report
+                let _ = self.queue_read();
 
-                    return Some(report);
-                }
+                return Some(report);
             }
+        }
         None
     }
 
