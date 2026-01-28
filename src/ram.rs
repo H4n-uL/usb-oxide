@@ -8,7 +8,7 @@ pub trait Dma: Send + Sync {
     /// Allocates a `size` byte region of physically contiguous memory
     /// with the specified alignment.
     ///
-    /// Returns the virtual address of the allocated region, or 0 on failure.
+    /// Returns the virtual address of the allocated region, or `None` on failure.
     ///
     /// # Arguments
     ///
@@ -21,7 +21,7 @@ pub trait Dma: Send + Sync {
     /// - Memory must be physically contiguous
     /// - Memory must be correctly mapped to virtual address space
     /// - Returned address must be aligned to `align` bytes
-    unsafe fn alloc(&self, size: usize, align: usize) -> usize;
+    unsafe fn alloc(&self, size: usize, align: usize) -> Option<usize>;
 
     /// Deallocates a previously allocated region of memory.
     ///
@@ -34,13 +34,13 @@ pub trait Dma: Send + Sync {
 
     /// Maps an MMIO region into virtual address space.
     ///
-    /// Returns the virtual address, or 0 on failure.
+    /// Returns the virtual address, or `None` on failure.
     ///
     /// # Safety
     ///
     /// - The physical address must be a valid MMIO region
     /// - The mapping must have appropriate memory attributes (uncached, device memory)
-    unsafe fn map_mmio(&self, phys: usize, size: usize) -> usize;
+    unsafe fn map_mmio(&self, phys: usize, size: usize) -> Option<usize>;
 
     /// Unmaps a previously mapped MMIO region.
     ///

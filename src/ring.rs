@@ -301,10 +301,10 @@ pub struct PhysMem<H: Dma> {
 impl<H: Dma> PhysMem<H> {
     /// Allocates a new physical memory region with the specified alignment.
     pub fn alloc(host: &H, size: usize, align: usize) -> Result<Self> {
-        let addr = unsafe { host.alloc(size, align) };
-        if addr == 0 {
-            return Err(UsbError::OoRam);
-        }
+        let addr = unsafe {
+            host.alloc(size, align)
+        }.ok_or(UsbError::OoRam)?;
+
         unsafe {
             core::ptr::write_bytes(addr as *mut u8, 0, size);
         }

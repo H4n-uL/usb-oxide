@@ -36,7 +36,7 @@ mod desc;
 mod dev;
 mod err;
 mod hid;
-mod host;
+mod ram;
 mod msc;
 mod reg;
 mod ring;
@@ -46,7 +46,7 @@ mod xhci;
 pub use crate::{
     dev::UsbDevice,
     err::{Result, UsbError},
-    host::Dma,
+    ram::Dma,
     ring::{PhysMem, Trb},
     xhci::XhciCtrl,
 };

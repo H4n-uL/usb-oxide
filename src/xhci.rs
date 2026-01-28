@@ -34,10 +34,9 @@ impl<H: Dma> XhciCtrl<H> {
         let host = Arc::new(host);
 
         // Initial map to read capability registers
-        let init_mmio = unsafe { host.map_mmio(mmio_phys, MMIO_INIT_SIZE) };
-        if init_mmio == 0 {
-            return Err(UsbError::MapFail);
-        }
+        let init_mmio = unsafe {
+            host.map_mmio(mmio_phys, MMIO_INIT_SIZE)
+        }.ok_or(UsbError::MapFail)?;
 
         let cap_length = unsafe { (init_mmio as *const u8).read_volatile() };
         let hcs1: u32 = unsafe { ((init_mmio + reg::HCSPARAMS1) as *const u32).read_volatile() };
@@ -59,10 +58,9 @@ impl<H: Dma> XhciCtrl<H> {
         }
 
         // Remap with full size
-        let mmio = unsafe { host.map_mmio(mmio_phys, mmio_size) };
-        if mmio == 0 {
-            return Err(UsbError::MapFail);
-        }
+        let mmio = unsafe {
+            host.map_mmio(mmio_phys, mmio_size)
+        }.ok_or(UsbError::MapFail)?;
 
         let op_base = mmio + cap_length as usize;
         let rt_base = mmio + rts_offset as usize;
